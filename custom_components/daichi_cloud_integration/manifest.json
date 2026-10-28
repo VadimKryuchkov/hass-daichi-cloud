@@ -10,5 +10,5 @@
   "iot_class": "cloud_push",
   "issue_tracker": "https://github.com/VadimKryuchkov/hass-daichi-cloud/issues",
   "requirements": ["websocket-client>=1.5.1", "aiohttp>=3.9.3"],
-  "version": "0.1.0"
+  "version": "0.1.1"
 }
