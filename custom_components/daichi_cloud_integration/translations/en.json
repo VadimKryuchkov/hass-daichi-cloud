@@ -124,6 +124,11 @@
       "air_purifier": {
         "name": "Air Purifier"
       }
+    },
+    "climate": {
+      "air_conditioner": {
+        "name": "Air Conditioner"
+      }
     }
   },
   "issues": {
