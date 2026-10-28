@@ -28,10 +28,12 @@ Uncomment and customize these badges if you want to use them:
 - **Reload Action**: Manually request a coordinator data refresh
 
 > [!WARNING]
-> This integration is still a development scaffold, not a working Daichi Cloud client.
-> The API client currently fetches demo data from JSONPlaceholder. Climate values and
-> commands are not connected to the Daichi Cloud API, and the other example entities
-> do not control a real air conditioner.
+> This integration is still under development and uses the unofficial Daichi Comfort
+> Cloud API. The client can authenticate and fetch building data, but the coordinator
+> does not yet load an AC's state and climate controls are not connected to the API.
+> Other example entities do not control a real air conditioner. The API protocol is
+> based on the community-maintained [Daichi Comfort Cloud integration](https://github.com/warpreality/daichi-ha),
+> not an official API specification, and may change without notice.
 
 **The integration currently creates these entities.**
 
@@ -94,8 +96,9 @@ Follow the setup wizard:
 2. Enter your password
 3. Click Submit
 
-The integration will start loading demo data. Real Daichi Cloud authentication and
-device data support have not been implemented yet.
+The integration validates credentials against Daichi Comfort Cloud and loads the
+account's building data. Device selection and AC state synchronization are not yet
+implemented.
 
 #### Option 2: Manual Configuration
 
@@ -136,11 +139,12 @@ Find all entities in **Settings** → **Devices & Services** → **Daichi Cloud 
 
 - **Air Conditioner**: Climate entity scaffold with `off`, `auto`, `cool`, `heat`, `dry`, and `fan_only` modes.
 - Current and target temperatures and HVAC mode are read from coordinator fields `current_temperature`, `target_temperature`, and `hvac_mode`.
-- These fields are not supplied by the current demo API. Setting a mode or temperature reports that climate control is not implemented yet.
+- The current coordinator fetches account building data, not an individual device state. Setting a mode or temperature reports that climate control is not implemented yet.
 
 ### Demo entities
 
-The following entities are retained as development examples. Their values or controls are local/demo behavior and are not connected to an air conditioner:
+The following entities are retained as development examples. Their values or controls
+are local/demo behavior and are not connected to an air conditioner:
 
 - **Filter Life Remaining** and **Total Runtime** sensors
 - **Filter Replacement Needed** binary sensor
@@ -187,9 +191,9 @@ You can change these anytime by clicking **Configure**:
 
 ### Configuration and API status
 
-The setup and reconfigure forms collect account credentials, but the current demo
-client does not authenticate with Daichi Cloud. Reauthentication and actual cloud
-account validation will become useful after the Daichi Cloud API client is implemented.
+The client uses an unofficial Daichi Comfort Cloud API. Authentication and account
+building retrieval are implemented, but selecting devices and synchronizing their
+state with Home Assistant are still pending.
 
 ### Enable Debug Logging
 
@@ -206,10 +210,9 @@ logger:
 
 #### Climate controls or device data unavailable
 
-The climate entity is currently a scaffold. Its mode and temperature commands are not
-connected to the Daichi Cloud API, and the API client still uses a demo endpoint. Real
-device control will require implementation of Daichi Cloud authentication, state
-retrieval, and command requests.
+The climate entity is currently a scaffold. Although the API client can send a generic
+device function command, the integration does not yet identify a configured device or
+connect climate mode and temperature changes to its state.
 
 ## 🤝 Contributing
 

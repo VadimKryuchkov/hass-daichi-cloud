@@ -6,7 +6,9 @@ LOGGER: Logger = getLogger(__package__)
 
 # Integration metadata
 DOMAIN = "daichi_cloud_integration"
-ATTRIBUTION = "Data provided by http://jsonplaceholder.typicode.com/"
+ATTRIBUTION = "Data provided by Daichi Cloud."
+DEFAULT_API_URL = "https://web.daichicloud.ru/api/v4"
+DEFAULT_CLIENT_ID = "sOJO7B6SqgaKudTfCzqLAy540cCuDzpI"
 
 # Platform parallel updates - applied to all platforms
 PARALLEL_UPDATES = 1
