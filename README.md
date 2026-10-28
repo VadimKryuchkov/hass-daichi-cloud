@@ -21,31 +21,33 @@ Uncomment and customize these badges if you want to use them:
 ## ✨ Features
 
 - **Easy Setup**: Simple configuration through the UI - no YAML required
-- **Air Quality Monitoring**: Track AQI and PM2.5 levels in real-time
-- **Filter Management**: Monitor filter life and get replacement alerts
-- **Smart Control**: Adjust fan speed, target humidity, and operating modes
-- **Child Lock**: Safety feature to prevent accidental changes
-- **Diagnostic Info**: View filter life, runtime hours, and device statistics
+- **Climate Entity Scaffold**: Exposes off, auto, cool, heat, dry, and fan-only modes
+- **Development Entities**: Includes example fan, fan-speed, humidity, and filter entities
 - **Reconfigurable**: Change credentials anytime without removing the integration
 - **Options Flow**: Adjust settings like update interval after setup
-- **Custom Services**: Advanced control with built-in service calls
+- **Reload Action**: Manually request a coordinator data refresh
 
-**This integration will set up the following platforms.**
+> [!WARNING]
+> This integration is still a development scaffold, not a working Daichi Cloud client.
+> The API client currently fetches demo data from JSONPlaceholder. Climate values and
+> commands are not connected to the Daichi Cloud API, and the other example entities
+> do not control a real air conditioner.
 
-| Platform        | Description                                              |
-| --------------- | -------------------------------------------------------- |
-| `sensor`        | Air quality index (AQI), PM2.5, filter life, and runtime |
-| `binary_sensor` | API connection status and filter replacement alert       |
-| `switch`        | Child lock and LED display controls                      |
-| `select`        | Fan speed selection (Low/Medium/High/Auto)               |
-| `number`        | Target humidity setting (30-80%)                         |
-| `button`        | Reset filter timer after replacement                     |
-| `fan`           | Air purifier fan control with speed settings             |
+**The integration currently creates these entities.**
+
+| Platform        | Current entities                                                         |
+| --------------- | ------------------------------------------------------------------------ |
+| `climate`       | Air conditioner scaffold; modes are listed, API-backed state/control TBD |
+| `binary_sensor` | Demo filter replacement indicator                                        |
+| `sensor`        | Demo filter life and runtime values                                      |
+| `fan`           | Demo air-purifier fan entity                                             |
+| `select`        | Demo fan-speed selector                                                  |
+| `number`        | Demo target-humidity setting                                             |
 
 > [!TIP]
-> **Interactive Demo:** The entities are interconnected for demonstration.
-> Press the **Reset Filter Timer** button to see **Filter Life Remaining** update to 100%.
-> Changing the **Air Purifier** fan speed syncs the **Fan Speed** select, and vice versa.
+> The fan and fan-speed selector share demo state. The removed filter-reset button,
+> air-quality sensors, API-connectivity sensor, example switches, diagnostics, and
+> repair flow are not part of the current integration.
 
 ## 🚀 Quick Start
 
@@ -92,7 +94,8 @@ Follow the setup wizard:
 2. Enter your password
 3. Click Submit
 
-That's it! The integration will start loading your data.
+The integration will start loading demo data. Real Daichi Cloud authentication and
+device data support have not been implemented yet.
 
 #### Option 2: Manual Configuration
 
@@ -112,102 +115,55 @@ After setup, you can adjust options:
    - Enable debug logging
 
 You can also **Reconfigure** your credentials anytime without removing the integration.
+The options form currently saves these values, but the coordinator still uses a fixed
+one-hour refresh interval and does not apply the debug option.
 
 ### Step 4: Start Using!
 
-The integration creates several entities for your air purifier:
+The integration currently creates these entities:
 
-- **Sensors**: Air quality index, PM2.5 levels, filter life remaining, total runtime
-- **Binary Sensors**: API connection status, filter replacement alert
-- **Switches**: Child lock, LED display control
-- **Select**: Fan speed (Low/Medium/High/Auto)
-- **Number**: Target humidity (30-80%)
-- **Button**: Reset filter timer
-- **Fan**: Air purifier fan control
+- **Climate**: Air conditioner scaffold with off, auto, cool, heat, dry, and fan-only modes
+- **Sensors**: Demo filter life remaining and total runtime
+- **Binary Sensor**: Demo filter replacement indicator
+- **Fan and Select**: Demo fan and fan-speed selector
+- **Number**: Demo target-humidity setting
 
 Find all entities in **Settings** → **Devices & Services** → **Daichi Cloud Climate** → click on the device.
 
 ## Available Entities
 
-### Sensors
+### Climate
 
-- **Air Quality Index (AQI)**: Real-time air quality measurement (0-500 scale)
-  - Includes air quality category (Good/Moderate/Unhealthy/etc.)
-  - Health recommendations based on current AQI
-- **PM2.5**: Fine particulate matter concentration in µg/m³
-- **Filter Life Remaining** (Diagnostic): Shows remaining filter life as percentage
-- **Total Runtime** (Diagnostic): Total operating hours of the device
+- **Air Conditioner**: Climate entity scaffold with `off`, `auto`, `cool`, `heat`, `dry`, and `fan_only` modes.
+- Current and target temperatures and HVAC mode are read from coordinator fields `current_temperature`, `target_temperature`, and `hvac_mode`.
+- These fields are not supplied by the current demo API. Setting a mode or temperature reports that climate control is not implemented yet.
 
-### Binary Sensors
+### Demo entities
 
-- **API Connection**: Shows whether the connection to the API is active
-  - On: Connected and receiving data
-  - Off: Connection lost or authentication failed
-  - Shows update interval and API endpoint information
-- **Filter Replacement Needed**: Alerts when filter needs replacement
-  - Shows estimated days remaining
-  - Turns on when filter life is low
+The following entities are retained as development examples. Their values or controls are local/demo behavior and are not connected to an air conditioner:
 
-### Switches
+- **Filter Life Remaining** and **Total Runtime** sensors
+- **Filter Replacement Needed** binary sensor
+- **Air Purifier** fan and **Fan Speed** selector
+- **Target Humidity** number
 
-- **Child Lock**: Prevents accidental button presses on the device
-  - Icon changes based on state (locked/unlocked)
-- **LED Display**: Enable/disable the LED display
-  - Disabled by default - enable in entity settings if needed
-
-### Select
-
-- **Fan Speed**: Choose from Low, Medium, High, or Auto
-  - Icon changes dynamically based on selected speed
-  - Auto mode adjusts speed based on air quality
-  - Syncs bidirectionally with the Air Purifier fan entity
-
-### Number
-
-- **Target Humidity**: Set desired humidity level (30-80%)
-  - Adjustable in 5% increments
-  - Displayed as a slider in the UI
-
-### Button
-
-- **Reset Filter Timer**: Reset the filter life to 100%
-  - Press to reset after replacing the filter
-  - Instantly updates the Filter Life Remaining sensor
-
-### Fan
-
-- **Air Purifier**: Control the air purifier fan speed and power
-  - Three speed levels: Low, Medium, High
-  - Syncs bidirectionally with the Fan Speed select entity
-  - Turn on/off functionality
+Air-quality sensors, the API-connection sensor, child-lock/LED switches, the filter-reset button, diagnostics, and repairs have been removed.
 
 ## Custom Services
 
-The integration provides services for advanced automation:
-
-### `daichi_cloud_integration.example_action`
-
-Perform a custom action (customize this for your needs).
-
-**Example:**
-
-```yaml
-service: daichi_cloud_integration.example_action
-data:
-  # Add your parameters here
-```
+The integration provides one action:
 
 ### `daichi_cloud_integration.reload_data`
 
-Manually refresh data from the API without waiting for the update interval.
+Request a coordinator refresh without waiting for the next scheduled update.
 
 **Example:**
 
 ```yaml
-service: daichi_cloud_integration.reload_data
+action: daichi_cloud_integration.reload_data
 ```
 
-Use these services in automations or scripts for more control.
+The removed `example_action` service is no longer available.
 
 ## Configuration Options
 
@@ -229,39 +185,11 @@ You can change these anytime by clicking **Configure**:
 
 ## Troubleshooting
 
-### Authentication Issues
+### Configuration and API status
 
-#### Reauthentication
-
-If your credentials expire or change, Home Assistant will automatically prompt you to reauthenticate:
-
-1. Go to **Settings** → **Devices & Services**
-2. Look for **"Action Required"** or **"Configuration Required"** message on the integration
-3. Click **"Reconfigure"** or follow the prompt
-4. Enter your updated credentials
-5. Click Submit
-
-The integration will automatically resume normal operation with the new credentials.
-
-#### Manual Credential Update
-
-You can also update credentials at any time without waiting for an error:
-
-1. Go to **Settings** → **Devices & Services**
-2. Find **Daichi Cloud Climate**
-3. Click the **3 dots menu** → **Reconfigure**
-4. Enter new username/password
-5. Click Submit
-
-#### Connection Status
-
-Monitor your connection status with the **API Connection** binary sensor:
-
-- **On** (Connected): Integration is receiving data normally
-- **Off** (Disconnected): Connection lost or authentication failed
-  - Check the binary sensor attributes for diagnostic information
-  - Verify credentials if authentication failed
-  - Check network connectivity
+The setup and reconfigure forms collect account credentials, but the current demo
+client does not authenticate with Daichi Cloud. Reauthentication and actual cloud
+account validation will become useful after the Daichi Cloud API client is implemented.
 
 ### Enable Debug Logging
 
@@ -276,23 +204,12 @@ logger:
 
 ### Common Issues
 
-#### Authentication Errors
+#### Climate controls or device data unavailable
 
-If you receive authentication errors:
-
-1. Verify your username and password are correct
-2. Check that your account has the necessary permissions
-3. Wait for the automatic reauthentication prompt, or manually reconfigure
-4. Check the API Connection binary sensor for status
-
-#### Device Not Responding
-
-If your device is not responding:
-
-1. Check the **API Connection** binary sensor - it should be "On"
-2. Check your network connection
-3. Verify the device is powered on
-4. Check the integration diagnostics (Settings → Devices & Services → Daichi Cloud Climate → 3 dots → Download diagnostics)
+The climate entity is currently a scaffold. Its mode and temperature commands are not
+connected to the Daichi Cloud API, and the API client still uses a demo endpoint. Real
+device control will require implementation of Daichi Cloud authentication, state
+retrieval, and command requests.
 
 ## 🤝 Contributing
 
