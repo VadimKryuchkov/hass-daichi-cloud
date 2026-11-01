@@ -6,12 +6,13 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
+from homeassistant.exceptions import ConfigEntryError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
 from homeassistant.loader import async_get_loaded_integration
 
 from .api import DaichiCloudClimateApiClient
-from .const import DEFAULT_UPDATE_INTERVAL_HOURS, DOMAIN, LOGGER
+from .const import CONF_DEVICE_ID, DEFAULT_UPDATE_INTERVAL_HOURS, DOMAIN, LOGGER
 from .coordinator import DaichiCloudClimateDataUpdateCoordinator
 from .data import DaichiCloudClimateData
 from .service_actions import async_setup_services
@@ -46,6 +47,12 @@ async def async_setup_entry(
     entry: DaichiCloudClimateConfigEntry,
 ) -> bool:
     """Set up a Daichi Cloud config entry."""
+    device_id = entry.data.get(CONF_DEVICE_ID)
+    if isinstance(device_id, bool) or not isinstance(device_id, int) or device_id <= 0:
+        raise ConfigEntryError(
+            "This entry predates device selection. Remove it and add the integration again for each device."
+        )
+
     client = DaichiCloudClimateApiClient(
         username=entry.data[CONF_USERNAME],
         password=entry.data[CONF_PASSWORD],

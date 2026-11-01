@@ -54,6 +54,20 @@ def get_user_schema(defaults: Mapping[str, Any] | None = None) -> vol.Schema:
     )
 
 
+def get_device_schema(options: list[selector.SelectOptionDict]) -> vol.Schema:
+    """Get schema for selecting a device during initial setup."""
+    return vol.Schema(
+        {
+            vol.Required("device_id"): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=options,
+                    mode=selector.SelectSelectorMode.DROPDOWN,
+                ),
+            ),
+        },
+    )
+
+
 def get_reconfigure_schema(username: str) -> vol.Schema:
     """
     Get schema for reconfigure step.
@@ -119,6 +133,7 @@ def get_reauth_schema(username: str) -> vol.Schema:
 
 
 __all__ = [
+    "get_device_schema",
     "get_reauth_schema",
     "get_reconfigure_schema",
     "get_user_schema",

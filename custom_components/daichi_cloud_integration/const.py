@@ -6,6 +6,7 @@ LOGGER: Logger = getLogger(__package__)
 
 # Integration metadata
 DOMAIN = "daichi_cloud_integration"
+CONF_DEVICE_ID = "device_id"
 ATTRIBUTION = "Data provided by Daichi Cloud."
 DEFAULT_API_URL = "https://web.daichicloud.ru/api/v4"
 DEFAULT_CLIENT_ID = "sOJO7B6SqgaKudTfCzqLAy540cCuDzpI"

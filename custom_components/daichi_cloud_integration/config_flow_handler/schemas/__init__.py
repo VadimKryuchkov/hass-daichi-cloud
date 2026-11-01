@@ -21,6 +21,7 @@ All schemas are re-exported from this __init__.py for convenient imports.
 from __future__ import annotations
 
 from custom_components.daichi_cloud_integration.config_flow_handler.schemas.config import (
+    get_device_schema,
     get_reauth_schema,
     get_reconfigure_schema,
     get_user_schema,
@@ -29,6 +30,7 @@ from custom_components.daichi_cloud_integration.config_flow_handler.schemas.opti
 
 # Re-export all schemas for convenient imports
 __all__ = [
+    "get_device_schema",
     "get_options_schema",
     "get_reauth_schema",
     "get_reconfigure_schema",

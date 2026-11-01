@@ -8,6 +8,13 @@
           "password": "Password"
         }
       },
+      "device": {
+        "title": "Select a device",
+        "description": "Choose the Daichi device this Home Assistant entry should control.",
+        "data": {
+          "device_id": "Device"
+        }
+      },
       "reconfigure": {
         "description": "Update the credentials for this integration.",
         "data": {
@@ -27,10 +34,15 @@
     "error": {
       "auth": "Username/Password is wrong.",
       "connection": "Unable to connect to the server.",
+      "no_devices": "No devices were found in this Daichi account.",
+      "invalid_device": "Select a valid device.",
+      "device_not_found": "The selected device is not available in this Daichi account.",
       "unknown": "Unknown error occurred."
     },
     "abort": {
-      "already_configured": "This entry is already configured."
+      "already_configured": "This entry is already configured.",
+      "device_selection_expired": "Device selection expired. Start setup again.",
+      "no_devices": "No selectable devices were found in this Daichi account."
     }
   },
   "options": {

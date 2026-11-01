@@ -17,7 +17,7 @@ from custom_components.daichi_cloud_integration.api import (
     DaichiCloudClimateApiClientAuthenticationError,
     DaichiCloudClimateApiClientError,
 )
-from custom_components.daichi_cloud_integration.const import LOGGER
+from custom_components.daichi_cloud_integration.const import CONF_DEVICE_ID, LOGGER
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -80,20 +80,8 @@ class DaichiCloudClimateDataUpdateCoordinator(DataUpdateCoordinator):
         - username: from config_entry.data["username"]
         - password: from config_entry.data["password"]
 
-        Expected API response structure (example):
-        {
-            "userId": 1,      # Used as device identifier
-            "id": 1,          # Data record ID
-            "title": "...",   # Additional metadata
-            "body": "...",    # Additional content
-            # In production, would include:
-            # "air_quality": {"aqi": 45, "pm25": 12.3},
-            # "filter": {"life_remaining": 75, "runtime_hours": 324},
-            # "settings": {"fan_speed": "medium", "humidity": 55}
-        }
-
         Returns:
-            The data from the API as a dictionary.
+            The selected device state from the API.
 
         Raises:
             ConfigEntryAuthFailed: If authentication fails, triggers reauthentication.
@@ -104,7 +92,8 @@ class DaichiCloudClimateDataUpdateCoordinator(DataUpdateCoordinator):
             # listening_contexts = set(self.async_contexts())
             # LOGGER.debug("Active entity contexts: %s", listening_contexts)
 
-            return await self.config_entry.runtime_data.client.async_get_devices(force_refresh=True)
+            device_id = self.config_entry.data[CONF_DEVICE_ID]
+            return await self.config_entry.runtime_data.client.async_get_device_state(device_id)
         except DaichiCloudClimateApiClientAuthenticationError as exception:
             LOGGER.warning("Authentication error - %s", exception)
             raise ConfigEntryAuthFailed(

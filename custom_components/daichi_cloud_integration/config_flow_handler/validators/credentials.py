@@ -11,20 +11,20 @@ When this file grows, consider splitting into:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from custom_components.daichi_cloud_integration.api import DaichiCloudClimateApiClient
-from custom_components.daichi_cloud_integration.api.client import (
-    DaichiCloudClimateApiClientAuthenticationError,
-    DaichiCloudClimateApiClientCommunicationError,
-)
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
 
-async def validate_credentials(hass: HomeAssistant, username: str, password: str) -> dict[str, str]:
+async def validate_credentials(
+    hass: HomeAssistant,
+    username: str,
+    password: str,
+) -> list[dict[str, Any]]:
     """
     Validate user credentials by testing API connection.
 
@@ -38,23 +38,17 @@ async def validate_credentials(hass: HomeAssistant, username: str, password: str
         DaichiCloudClimateApiClientCommunicationError: If communication fails.
         DaichiCloudClimateApiClientError: For other API errors.
 
+    Returns:
+        The devices available to the authenticated account.
+
     """
     client = DaichiCloudClimateApiClient(
         username=username,
         password=password,
         session=async_create_clientsession(hass),
     )
-    """await client.async_get_data()  """
-
-    try:
-        await client.async_authenticate()
-        await client.async_get_devices()
-    except DaichiCloudClimateApiClientAuthenticationError:
-        raise
-    except Exception as err:
-        raise DaichiCloudClimateApiClientCommunicationError from err
-
-    return {"title": f"Daichi ({username})"}
+    await client.async_authenticate()
+    return await client.async_get_devices()
 
 
 __all__ = [

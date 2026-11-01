@@ -110,20 +110,26 @@ class DaichiCloudClimateApiClient:
         if self._devices is not None and not force_refresh and building_id is None:
             return self._devices
 
+        def get_building_devices(building: dict[str, Any]) -> list[dict[str, Any]]:
+            places = building.get("places", [])
+            if not isinstance(places, list) or not all(isinstance(device, dict) for device in places):
+                msg = "Daichi Cloud returned invalid device data"
+                raise DaichiCloudClimateApiClientCommunicationError(msg)
+            return places
+
         try:
             buildings = await self.async_get_buildings(force_refresh=force_refresh)
             all_devices: list[dict[str, Any]] = []
             for building in buildings:
                 if building_id is not None and building.get("id") != building_id:
                     continue
-                places = building.get("places", [])
-                if places:
-                    all_devices.extend(places)
-                    LOGGER.debug(
-                        "Found %d devices in building '%s'",
-                        len(places),
-                        building.get("title", "Unknown"),
-                    )
+                places = get_building_devices(building)
+                all_devices.extend(places)
+                LOGGER.debug(
+                    "Found %d devices in building '%s'",
+                    len(places),
+                    building.get("title", "Unknown"),
+                )
 
             if building_id is None:
                 self._devices = all_devices
