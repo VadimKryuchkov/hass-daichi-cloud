@@ -1,14 +1,4 @@
-"""
-Config flow for daichi_cloud_integration.
-
-This module implements the main configuration flow including:
-- Initial user setup
-- Reconfiguration of existing entries
-- Reauthentication flow
-
-For more information:
-https://developers.home-assistant.io/docs/config_entries_config_flow_handler
-"""
+"""Config flow for Daichi Cloud."""
 
 from __future__ import annotations
 
@@ -16,6 +6,11 @@ from typing import TYPE_CHECKING, Any
 
 from slugify import slugify
 
+from custom_components.daichi_cloud_integration.api import (
+    DaichiCloudClimateApiClientAuthenticationError,
+    DaichiCloudClimateApiClientCommunicationError,
+    DaichiCloudClimateApiClientError,
+)
 from custom_components.daichi_cloud_integration.config_flow_handler.schemas import (
     get_reauth_schema,
     get_reconfigure_schema,
@@ -32,28 +27,9 @@ if TYPE_CHECKING:
         DaichiCloudClimateOptionsFlow,
     )
 
-# Map exception types to error keys for user-facing messages
-ERROR_MAP = {
-    "DaichiCloudClimateApiClientAuthenticationError": "auth",
-    "DaichiCloudClimateApiClientCommunicationError": "connection",
-}
-
 
 class DaichiCloudClimateConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
-    """
-    Handle a config flow for daichi_cloud_integration.
-
-    This class manages the configuration flow for the integration, including
-    initial setup, reconfiguration, and reauthentication.
-
-    Supported flows:
-    - user: Initial setup via UI
-    - reconfigure: Update existing configuration
-    - reauth: Handle expired credentials
-
-    For more details:
-    https://developers.home-assistant.io/docs/config_entries_config_flow_handler
-    """
+    """Set up and reconfigure Daichi Cloud accounts."""
 
     VERSION = 1
 
@@ -61,13 +37,7 @@ class DaichiCloudClimateConfigFlowHandler(config_entries.ConfigFlow, domain=DOMA
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
     ) -> DaichiCloudClimateOptionsFlow:
-        """
-        Get the options flow for this handler.
-
-        Returns:
-            The options flow instance for modifying integration options.
-
-        """
+        """Return the options flow."""
         from custom_components.daichi_cloud_integration.config_flow_handler.options_flow import (  # noqa: PLC0415
             DaichiCloudClimateOptionsFlow,
         )
@@ -78,87 +48,46 @@ class DaichiCloudClimateConfigFlowHandler(config_entries.ConfigFlow, domain=DOMA
         self,
         user_input: dict[str, Any] | None = None,
     ) -> config_entries.ConfigFlowResult:
-        """
-        Handle a flow initialized by the user.
-
-        This is the entry point when a user adds the integration from the UI.
-
-        Args:
-            user_input: The user input from the config flow form, or None for initial display.
-
-        Returns:
-            The config flow result, either showing a form or creating an entry.
-
-        """
+        """Handle initial account setup."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            try:
-                await validate_credentials(
-                    self.hass,
-                    username=user_input[CONF_USERNAME],
-                    password=user_input[CONF_PASSWORD],
-                )
-            except Exception as exception:  # noqa: BLE001
-                errors["base"] = self._map_exception_to_error(exception)
-            else:
-                # Set unique ID based on username
-                # NOTE: This is just an example - use a proper unique ID in production
-                # See: https://developers.home-assistant.io/docs/config_entries_config_flow_handler#unique-ids
-                await self.async_set_unique_id(slugify(user_input[CONF_USERNAME]))
-                self._abort_if_unique_id_configured()
+            await self.async_set_unique_id(slugify(user_input[CONF_USERNAME]))
+            self._abort_if_unique_id_configured()
 
+            error = await self._async_validate_credentials(user_input)
+            if error is None:
                 return self.async_create_entry(
                     title=user_input[CONF_USERNAME],
                     data=user_input,
                 )
+            errors["base"] = error
 
         integration = async_get_loaded_integration(self.hass, DOMAIN)
         assert integration.documentation is not None, "Integration documentation URL is not set in manifest.json"
-
         return self.async_show_form(
             step_id="user",
             data_schema=get_user_schema(user_input),
             errors=errors,
-            description_placeholders={
-                "documentation_url": integration.documentation,
-            },
+            description_placeholders={"documentation_url": integration.documentation},
         )
 
     async def async_step_reconfigure(
         self,
         user_input: dict[str, Any] | None = None,
     ) -> config_entries.ConfigFlowResult:
-        """
-        Handle reconfiguration of the integration.
-
-        Allows users to update their credentials without removing and re-adding
-        the integration.
-
-        Args:
-            user_input: The user input from the reconfigure form, or None for initial display.
-
-        Returns:
-            The config flow result, either showing a form or updating the entry.
-
-        """
+        """Handle credential updates for an existing entry."""
         entry = self._get_reconfigure_entry()
-        errors: dict[str, str] = {}
+        if entry.unique_id is not None:
+            await self.async_set_unique_id(entry.unique_id)
+            self._abort_if_unique_id_mismatch()
 
+        errors: dict[str, str] = {}
         if user_input is not None:
-            try:
-                await validate_credentials(
-                    self.hass,
-                    username=user_input[CONF_USERNAME],
-                    password=user_input[CONF_PASSWORD],
-                )
-            except Exception as exception:  # noqa: BLE001
-                errors["base"] = self._map_exception_to_error(exception)
-            else:
-                return self.async_update_reload_and_abort(
-                    entry,
-                    data=user_input,
-                )
+            error = await self._async_validate_credentials(user_input)
+            if error is None:
+                return self.async_update_reload_and_abort(entry, data=user_input)
+            errors["base"] = error
 
         return self.async_show_form(
             step_id="reconfigure",
@@ -170,78 +99,56 @@ class DaichiCloudClimateConfigFlowHandler(config_entries.ConfigFlow, domain=DOMA
         self,
         entry_data: dict[str, Any] | None = None,
     ) -> config_entries.ConfigFlowResult:
-        """
-        Handle reauthentication when credentials are invalid.
-
-        This flow is automatically triggered when the coordinator catches
-        an authentication error (ConfigEntryAuthFailed).
-
-        Args:
-            entry_data: The existing entry data (unused, per convention).
-
-        Returns:
-            The result of the reauth_confirm step.
-
-        """
+        """Start reauthentication for an existing entry."""
+        entry = self._get_reauth_entry()
+        if entry.unique_id is not None:
+            await self.async_set_unique_id(entry.unique_id)
+            self._abort_if_unique_id_mismatch()
         return await self.async_step_reauth_confirm()
 
     async def async_step_reauth_confirm(
         self,
         user_input: dict[str, Any] | None = None,
     ) -> config_entries.ConfigFlowResult:
-        """
-        Handle reauthentication confirmation.
-
-        Shows the reauthentication form and processes updated credentials.
-
-        Args:
-            user_input: The user input with updated credentials, or None for initial display.
-
-        Returns:
-            The config flow result, either showing a form or updating the entry.
-
-        """
+        """Confirm updated credentials and reload the existing entry."""
         entry = self._get_reauth_entry()
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            try:
-                await validate_credentials(
-                    self.hass,
-                    username=user_input[CONF_USERNAME],
-                    password=user_input[CONF_PASSWORD],
-                )
-            except Exception as exception:  # noqa: BLE001
-                errors["base"] = self._map_exception_to_error(exception)
-            else:
+            error = await self._async_validate_credentials(user_input)
+            if error is None:
                 return self.async_update_reload_and_abort(
                     entry,
                     data={**entry.data, **user_input},
                 )
+            errors["base"] = error
 
         return self.async_show_form(
             step_id="reauth_confirm",
             data_schema=get_reauth_schema(entry.data.get(CONF_USERNAME, "")),
             errors=errors,
-            description_placeholders={
-                "username": entry.data.get(CONF_USERNAME, ""),
-            },
+            description_placeholders={"username": entry.data.get(CONF_USERNAME, "")},
         )
 
-    def _map_exception_to_error(self, exception: Exception) -> str:
-        """
-        Map API exceptions to user-facing error keys.
-
-        Args:
-            exception: The exception that was raised.
-
-        Returns:
-            The error key for display in the config flow form.
-
-        """
-        LOGGER.warning("Error in config flow: %s", exception)
-        exception_name = type(exception).__name__
-        return ERROR_MAP.get(exception_name, "unknown")
+    async def _async_validate_credentials(self, user_input: dict[str, Any]) -> str | None:
+        """Validate credentials and return the user-facing error key, if any."""
+        try:
+            await validate_credentials(
+                self.hass,
+                username=user_input[CONF_USERNAME],
+                password=user_input[CONF_PASSWORD],
+            )
+        except DaichiCloudClimateApiClientAuthenticationError:
+            return "auth"
+        except DaichiCloudClimateApiClientCommunicationError:
+            return "connection"
+        except DaichiCloudClimateApiClientError:
+            LOGGER.exception("Unexpected Daichi Cloud API error during config flow")
+            return "unknown"
+        except Exception:  # noqa: BLE001 - Unexpected config flow errors must be logged and shown as unknown.
+            LOGGER.exception("Unexpected error during Daichi Cloud config flow")
+            return "unknown"
+        return None
 
 
 __all__ = ["DaichiCloudClimateConfigFlowHandler"]
