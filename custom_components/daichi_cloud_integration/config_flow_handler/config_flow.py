@@ -104,12 +104,12 @@ class DaichiCloudClimateConfigFlowHandler(config_entries.ConfigFlow, domain=DOMA
             if isinstance(device_id, bool) or not isinstance(device_id, int) or device_id <= 0:
                 continue
             device_key = str(device_id)
-            title = f"{device.get('title')} {device.get('serial')}"
+            title = device.get("title")
             label = title.strip() if isinstance(title, str) and title.strip() else f"Device {device_id}"
             if device_key in devices_by_id:
                 continue
             devices_by_id[device_key] = device
-            device_options.append({"value": device_key, "label": f"{label} (ID: {device_id})"})
+            device_options.append({"value": device_key, "label": f"{label} (ID: {device.get('serial')})"})
 
         if not device_options:
             return self.async_abort(reason="no_devices")
