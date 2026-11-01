@@ -52,16 +52,34 @@ class DaichiCloudClimateConfigFlowHandler(config_entries.ConfigFlow, domain=DOMA
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            await self.async_set_unique_id(slugify(user_input[CONF_USERNAME]))
+            await self.async_set_unique_id(slugify(user_input[CONF_USERNAME]).lower())
             self._abort_if_unique_id_configured()
 
+            try:
+                info = await validate_credentials(
+                    self.hass,
+                    username=user_input[CONF_USERNAME],
+                    password=user_input[CONF_PASSWORD],
+                )
+            except DaichiCloudClimateApiClientCommunicationError:
+                errors["base"] = "cannot_connect"
+            except DaichiCloudClimateApiClientAuthenticationError:
+                errors["base"] = "invalid_auth"
+            except Exception:  # noqa: BLE001 - Unexpected config flow errors must be logged and shown as unknown.
+                LOGGER.exception("Unexpected error in config flow")
+                errors["base"] = "unknown"
+            else:
+                return self.async_create_entry(title=info["title"], data=user_input)
+            """ Далее пока не проверяем """
+            """
             error = await self._async_validate_credentials(user_input)
+
             if error is None:
                 return self.async_create_entry(
-                    title=user_input[CONF_USERNAME],
+                    title=f"Daichi Cloud ({user_input[CONF_USERNAME]})",
                     data=user_input,
                 )
-            errors["base"] = error
+            errors["base"] = error"""
 
         integration = async_get_loaded_integration(self.hass, DOMAIN)
         assert integration.documentation is not None, "Integration documentation URL is not set in manifest.json"

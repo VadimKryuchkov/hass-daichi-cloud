@@ -14,13 +14,17 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from custom_components.daichi_cloud_integration.api import DaichiCloudClimateApiClient
+from custom_components.daichi_cloud_integration.api.client import (
+    DaichiCloudClimateApiClientAuthenticationError,
+    DaichiCloudClimateApiClientCommunicationError,
+)
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
 
-async def validate_credentials(hass: HomeAssistant, username: str, password: str) -> None:
+async def validate_credentials(hass: HomeAssistant, username: str, password: str) -> dict[str, str]:
     """
     Validate user credentials by testing API connection.
 
@@ -40,7 +44,17 @@ async def validate_credentials(hass: HomeAssistant, username: str, password: str
         password=password,
         session=async_create_clientsession(hass),
     )
-    await client.async_get_data()  # May raise authentication/communication errors
+    """await client.async_get_data()  """
+
+    try:
+        await client.async_authenticate()
+        # await client.async_get_devices()
+    except DaichiCloudClimateApiClientAuthenticationError:
+        raise
+    except Exception as err:
+        raise DaichiCloudClimateApiClientCommunicationError from err
+
+    return {"title": f"Daichi ({username})"}
 
 
 __all__ = [

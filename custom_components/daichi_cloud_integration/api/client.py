@@ -10,7 +10,7 @@ from typing import Any
 import aiohttp
 
 from custom_components.daichi_cloud_integration.api.const import SUPPORTED_FUNCTION_IDS
-from custom_components.daichi_cloud_integration.const import DEFAULT_API_URL, DEFAULT_CLIENT_ID
+from custom_components.daichi_cloud_integration.const import DEFAULT_API_URL, DEFAULT_CLIENT_ID, LOGGER
 
 
 class DaichiCloudClimateApiClientError(Exception):
@@ -23,6 +23,9 @@ class DaichiCloudClimateApiClientCommunicationError(DaichiCloudClimateApiClientE
 
 class DaichiCloudClimateApiClientAuthenticationError(DaichiCloudClimateApiClientError):
     """Exception raised when authentication fails."""
+
+
+REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=30)
 
 
 class DaichiCloudClimateApiClient:
@@ -44,26 +47,46 @@ class DaichiCloudClimateApiClient:
 
     async def async_authenticate(self) -> None:
         """Authenticate and store the API access token."""
-        await self._async_request_json(
+        # @todo Добавить проверку валидности email
+        """await self._async_request_json(
             "POST",
             "/user/credentials",
             payload={"email": self._username},
             authenticated=False,
             expect_json=False,
             expected_statuses=(200, 201),
-        )
-        response = await self._async_request_json(
-            "POST",
-            "/token",
-            payload={
-                "email": self._username,
-                "password": self._password,
-                "clientId": DEFAULT_CLIENT_ID,
-            },
-            authenticated=False,
-        )
+        )"""
 
-        token = self._extract_access_token(response)
+        payload = {
+            "grant_type": "password",
+            "email": self._username,
+            "password": self._password,
+            "clientId": DEFAULT_CLIENT_ID,
+        }
+
+        async with self._session.post(
+            f"{self._base_url}/token",
+            json=payload,
+            headers={"Content-Type": "application/json"},
+            timeout=REQUEST_TIMEOUT,
+        ) as token_response:
+            if token_response.status in (401, 403):
+                msg = "Daichi Cloud rejected the credentials or access token"
+                raise DaichiCloudClimateApiClientAuthenticationError(msg)
+            if token_response.status != 200:
+                error_text = await token_response.text()
+                LOGGER.error(
+                    "Token request failed: %s - %s",
+                    token_response.status,
+                    error_text,
+                )
+                raise DaichiCloudClimateApiClientAuthenticationError(f"Authentication failed: {token_response.status}")
+
+            token_data = await token_response.json()
+
+        token = self._extract_access_token(token_data)
+        LOGGER.debug("Daichi Cloud authentication succeeded")
+
         if token is None:
             token = self._access_token
         if token is None:
