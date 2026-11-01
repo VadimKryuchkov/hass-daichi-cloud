@@ -104,10 +104,7 @@ class DaichiCloudClimateDataUpdateCoordinator(DataUpdateCoordinator):
             # listening_contexts = set(self.async_contexts())
             # LOGGER.debug("Active entity contexts: %s", listening_contexts)
 
-            # Fetch data from API
-            # In production, you could pass listening_contexts to optimize the API call:
-            # return await self.config_entry.runtime_data.client.async_get_data(listening_contexts)
-            return await self.config_entry.runtime_data.client.async_get_data()
+            return await self.config_entry.runtime_data.client.async_get_devices(force_refresh=True)
         except DaichiCloudClimateApiClientAuthenticationError as exception:
             LOGGER.warning("Authentication error - %s", exception)
             raise ConfigEntryAuthFailed(

@@ -44,6 +44,8 @@ class DaichiCloudClimateApiClient:
         self._session = session
         self._base_url = base_url.rstrip("/")
         self._access_token: str | None = None
+        self._buildings: list[dict[str, Any]] | None = None
+        self._devices: list[dict[str, Any]] | None = None
 
     async def async_authenticate(self) -> None:
         """Authenticate and store the API access token."""
@@ -99,13 +101,72 @@ class DaichiCloudClimateApiClient:
             raise DaichiCloudClimateApiClientCommunicationError(msg)
         self._access_token = token
 
-    async def async_get_data(self) -> dict[str, Any] | list[Any]:
-        """Return the raw buildings response for credential validation and refresh."""
-        response = await self._async_request_json("GET", "/buildings")
-        if response is None:
-            msg = "Daichi Cloud returned an empty buildings response"
-            raise DaichiCloudClimateApiClientCommunicationError(msg)
-        return response
+    async def async_get_devices(
+        self,
+        building_id: int | None = None,
+        force_refresh: bool = False,
+    ) -> list[dict[str, Any]]:
+        """Return the list of devices, optionally filtered by building ID."""
+        if self._devices is not None and not force_refresh and building_id is None:
+            return self._devices
+
+        try:
+            buildings = await self.async_get_buildings(force_refresh=force_refresh)
+            all_devices: list[dict[str, Any]] = []
+            for building in buildings:
+                if building_id is not None and building.get("id") != building_id:
+                    continue
+                places = building.get("places", [])
+                if places:
+                    all_devices.extend(places)
+                    LOGGER.debug(
+                        "Found %d devices in building '%s'",
+                        len(places),
+                        building.get("title", "Unknown"),
+                    )
+
+            if building_id is None:
+                self._devices = all_devices
+            LOGGER.debug("Fetched %d devices total", len(all_devices))
+        except DaichiCloudClimateApiClientError:
+            raise
+        except Exception as err:
+            LOGGER.error("Failed to fetch devices: %s", err)
+            raise DaichiCloudClimateApiClientCommunicationError(f"Failed to fetch devices: {err}") from err
+        return all_devices
+
+    async def async_get_buildings(self, force_refresh: bool = False) -> list[dict[str, Any]]:
+        """Return buildings, using the local cache unless a refresh is requested."""
+        if self._buildings is not None and not force_refresh:
+            return self._buildings
+
+        def validate_buildings_response(
+            response: dict[str, Any] | list[Any] | None,
+        ) -> list[dict[str, Any]]:
+            if isinstance(response, list):
+                buildings = response
+            elif isinstance(response, dict) and isinstance(response.get("data"), list):
+                buildings = response["data"]
+            else:
+                msg = "Daichi Cloud returned an unexpected buildings response"
+                raise DaichiCloudClimateApiClientCommunicationError(msg)
+
+            if not all(isinstance(building, dict) for building in buildings):
+                msg = "Daichi Cloud returned invalid building data"
+                raise DaichiCloudClimateApiClientCommunicationError(msg)
+            return buildings
+
+        try:
+            response = await self._async_request_json("GET", "/buildings")
+            self._buildings = validate_buildings_response(response)
+
+            LOGGER.debug("Fetched %d buildings", len(self._buildings or []))
+        except DaichiCloudClimateApiClientError:
+            raise
+        except Exception as err:
+            LOGGER.error("Failed to fetch buildings: %s", err)
+            raise DaichiCloudClimateApiClientCommunicationError(f"Failed to fetch buildings: {err}") from err
+        return self._buildings or []
 
     async def async_get_device_state(self, device_id: int) -> dict[str, Any]:
         """Return the raw state response for one device."""
@@ -160,6 +221,7 @@ class DaichiCloudClimateApiClient:
             raise DaichiCloudClimateApiClientError(msg)
         return response
 
+    # @todo Add retry logic
     async def _async_request_json(
         self,
         method: str,
@@ -178,12 +240,13 @@ class DaichiCloudClimateApiClient:
         headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
+            "User-Agent": "Home Assistant Integration",
         }
         if authenticated and self._access_token is not None:
             headers["Authorization"] = f"Bearer {self._access_token}"
 
         try:
-            async with asyncio.timeout(30):
+            async with asyncio.timeout(REQUEST_TIMEOUT.total):
                 async with self._session.request(
                     method,
                     f"{self._base_url}{path}",

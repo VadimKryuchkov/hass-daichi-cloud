@@ -48,7 +48,7 @@ async def validate_credentials(hass: HomeAssistant, username: str, password: str
 
     try:
         await client.async_authenticate()
-        # await client.async_get_devices()
+        await client.async_get_devices()
     except DaichiCloudClimateApiClientAuthenticationError:
         raise
     except Exception as err:
