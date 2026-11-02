@@ -6,14 +6,13 @@
 
 | Function ID   | Name        | Type    | Range/Values   | BLE Tag   | Description          |
 | ------------- | ----------- | ------- | -------------- | --------- | -------------------- |
-| 350           | Power       | boolean | true/false     | power     | Turn device on/off   |
+| 64 (350)      | Power       | boolean | true/false     | power     | Turn device on/off   |
 | 351           | Temperature | number  | 16-30          | setTemp   | Set temperature (°C) |
 
 These IDs are reference values, not the sole source of truth at runtime. The integration
-discovers the function IDs exposed by each device's `pult` metadata and uses recognizable
-function names/tags when available; the IDs above are fallback mappings for matching
-device functions. This avoids sending a global function ID that the selected device does
-not expose.
+discovers function IDs exposed by each device's `pult` metadata and uses recognizable
+function names/tags when available. Power control always uses API function ID 64
+(reference ID 350), regardless of the ID or metadata returned by `pult`.
 
 ### Operating Modes (Mode of operation)
 
@@ -74,13 +73,16 @@ Some functions are linked to others:
 - Function ID 351 (Temperature) has linkedFunction 350 (Power)
 - Function ID 358 (Fan speed) has linkedFunction 357 (Auto)
 
+Even if the temperature function exposes a power ID through `linkedFunction`,
+power on/off control always uses API function ID 64.
+
 ## Home Assistant Mapping
 
 ### Operating Mode (HVAC Mode)
 
 | Home Assistant Mode   | Function ID   | Value             |
 | --------------------- | ------------- | ----------------- |
-| `off`                 | 350           | false             |
+| `off`                 | 64 (350)      | false             |
 | `cool`                | 352           | true (applicable) |
 | `heat`                | 353           | true (applicable) |
 | `dry`                 | 355           | true (applicable) |

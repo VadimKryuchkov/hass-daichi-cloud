@@ -172,7 +172,7 @@ def _get_function_ids(device_data: dict[str, Any]) -> dict[str, int]:
     """Find control function IDs from device metadata, with known IDs as fallback."""
     pult = device_data.get("pult")
     if not isinstance(pult, list):
-        return {}
+        return {"power": FUNCTION_ID_POWER}
 
     matches: dict[str, set[int]] = {}
     for section in pult:
@@ -211,6 +211,8 @@ def _get_function_ids(device_data: dict[str, Any]) -> dict[str, int]:
             if action not in matches and _find_function(device_data, function_id) is not None
         }
     )
+
+    function_ids["power"] = FUNCTION_ID_POWER
 
     return function_ids
 
