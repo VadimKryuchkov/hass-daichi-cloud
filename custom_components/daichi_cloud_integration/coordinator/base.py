@@ -90,8 +90,8 @@ class DaichiCloudClimateDataUpdateCoordinator(DataUpdateCoordinator):
         """
         try:
             # Optional: Get active entity contexts to optimize data fetching
-            # listening_contexts = set(self.async_contexts())
-            # LOGGER.debug("Active entity contexts: %s", listening_contexts)
+            listening_contexts = set(self.async_contexts())
+            LOGGER.debug("Active entity contexts: %s", listening_contexts)
 
             device_id = self.config_entry.data[CONF_DEVICE_ID]
             raw_data = await self.config_entry.runtime_data.client.async_get_device_state(device_id)
