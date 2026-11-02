@@ -9,7 +9,6 @@ from typing import Any
 
 import aiohttp
 
-from custom_components.daichi_cloud_integration.api.const import SUPPORTED_FUNCTION_IDS
 from custom_components.daichi_cloud_integration.const import DEFAULT_API_URL, DEFAULT_CLIENT_ID, LOGGER
 
 
@@ -82,9 +81,15 @@ class DaichiCloudClimateApiClient:
                     token_response.status,
                     error_text,
                 )
-                raise DaichiCloudClimateApiClientAuthenticationError(f"Authentication failed: {token_response.status}")
+                raise DaichiCloudClimateApiClientCommunicationError(
+                    f"Authentication request failed with HTTP {token_response.status}"
+                )
 
-            token_data = await token_response.json()
+            try:
+                token_data = await token_response.json()
+            except (aiohttp.ContentTypeError, json.JSONDecodeError) as exception:
+                msg = "Daichi Cloud returned an invalid authentication response"
+                raise DaichiCloudClimateApiClientCommunicationError(msg) from exception
 
         token = self._extract_access_token(token_data)
         LOGGER.debug("Daichi Cloud authentication succeeded")
@@ -190,15 +195,15 @@ class DaichiCloudClimateApiClient:
         self,
         device_id: int,
         function_id: int,
-        value: int | bool | None = None,
+        value: float | bool | None = None,
         parameters: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Send a function command to a device."""
         if device_id <= 0:
             msg = "Device ID must be a positive integer"
             raise ValueError(msg)
-        if function_id not in SUPPORTED_FUNCTION_IDS:
-            msg = f"Unsupported Daichi Cloud function ID: {function_id}"
+        if isinstance(function_id, bool) or function_id <= 0:
+            msg = "Function ID must be a positive integer"
             raise ValueError(msg)
 
         command_value: dict[str, Any] = {
@@ -225,6 +230,14 @@ class DaichiCloudClimateApiClient:
         if not isinstance(response, dict):
             msg = "Device control response must be a JSON object"
             raise DaichiCloudClimateApiClientError(msg)
+        if response.get("done") is False:
+            details = self._extract_error_details(response)
+            msg = f"Daichi Cloud rejected the device control command: {details or 'command was not completed'}"
+            raise DaichiCloudClimateApiClientCommunicationError(msg)
+        if response.get("errors"):
+            details = self._extract_error_details(response)
+            msg = f"Daichi Cloud rejected the device control command: {details or 'unknown API error'}"
+            raise DaichiCloudClimateApiClientCommunicationError(msg)
         return response
 
     # @todo Add retry logic
@@ -241,7 +254,14 @@ class DaichiCloudClimateApiClient:
     ) -> dict[str, Any] | list[Any] | None:
         """Make a bounded HTTP request and validate its status and JSON response."""
         if authenticated and self._access_token is None:
-            await self.async_authenticate()
+            try:
+                await self.async_authenticate()
+            except TimeoutError as exception:
+                msg = "Timed out while authenticating with Daichi Cloud"
+                raise DaichiCloudClimateApiClientCommunicationError(msg) from exception
+            except aiohttp.ClientError as exception:
+                msg = "Unable to authenticate with Daichi Cloud"
+                raise DaichiCloudClimateApiClientCommunicationError(msg) from exception
 
         headers = {
             "Accept": "application/json",
@@ -264,7 +284,15 @@ class DaichiCloudClimateApiClient:
                         msg = "Daichi Cloud rejected the credentials or access token"
                         raise DaichiCloudClimateApiClientAuthenticationError(msg)
                     if response.status not in expected_statuses:
+                        error_text = await response.text()
+                        try:
+                            error_data = json.loads(error_text)
+                        except json.JSONDecodeError:
+                            error_data = None
+                        details = self._extract_error_details(error_data)
                         msg = f"Daichi Cloud request failed with HTTP {response.status}"
+                        if details:
+                            msg = f"{msg}: {details}"
                         raise DaichiCloudClimateApiClientCommunicationError(msg)
                     for cookie_name, cookie in response.cookies.items():
                         if path == "/token" and ("token" in cookie_name.lower() or "auth" in cookie_name.lower()):
@@ -305,3 +333,31 @@ class DaichiCloudClimateApiClient:
                 if isinstance(token, str) and token.strip():
                     return token.strip()
         return None
+
+    @staticmethod
+    def _extract_error_details(response: Any) -> str | None:
+        """Return useful error details from a Daichi API response."""
+        if not isinstance(response, dict):
+            return None
+
+        message = response.get("message")
+        details: list[str] = [message.strip()] if isinstance(message, str) and message.strip() else []
+
+        errors = response.get("errors")
+        if isinstance(errors, dict):
+            for field, error in errors.items():
+                if isinstance(error, str):
+                    error_text = error
+                elif isinstance(error, list):
+                    error_text = ", ".join(str(item) for item in error)
+                else:
+                    error_text = str(error)
+                if error_text:
+                    details.append(f"{field}: {error_text}")
+        elif isinstance(errors, list):
+            details.extend(str(error) for error in errors if error)
+        elif isinstance(errors, str) and errors:
+            details.append(errors)
+
+        unique_details = list(dict.fromkeys(details))
+        return "; ".join(unique_details) or None

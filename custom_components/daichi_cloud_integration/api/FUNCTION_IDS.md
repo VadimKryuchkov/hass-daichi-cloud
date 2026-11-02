@@ -9,6 +9,12 @@
 | 350           | Power       | boolean | true/false     | power     | Turn device on/off   |
 | 351           | Temperature | number  | 16-30          | setTemp   | Set temperature (°C) |
 
+These IDs are reference values, not the sole source of truth at runtime. The integration
+discovers the function IDs exposed by each device's `pult` metadata and uses recognizable
+function names/tags when available; the IDs above are fallback mappings for matching
+device functions. This avoids sending a global function ID that the selected device does
+not expose.
+
 ### Operating Modes (Mode of operation)
 
 | Function ID   | Name   | Applicable  | BLE Tag   | BLE Command   | Description           |

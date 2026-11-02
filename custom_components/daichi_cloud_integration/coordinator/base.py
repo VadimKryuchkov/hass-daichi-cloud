@@ -18,7 +18,8 @@ from custom_components.daichi_cloud_integration.api import (
     DaichiCloudClimateApiClientError,
 )
 from custom_components.daichi_cloud_integration.const import CONF_DEVICE_ID, LOGGER
-from homeassistant.exceptions import ConfigEntryAuthFailed
+from custom_components.daichi_cloud_integration.coordinator.data_processing import transform_api_data
+from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 if TYPE_CHECKING:
@@ -93,7 +94,8 @@ class DaichiCloudClimateDataUpdateCoordinator(DataUpdateCoordinator):
             # LOGGER.debug("Active entity contexts: %s", listening_contexts)
 
             device_id = self.config_entry.data[CONF_DEVICE_ID]
-            return await self.config_entry.runtime_data.client.async_get_device_state(device_id)
+            raw_data = await self.config_entry.runtime_data.client.async_get_device_state(device_id)
+            return transform_api_data(raw_data)
         except DaichiCloudClimateApiClientAuthenticationError as exception:
             LOGGER.warning("Authentication error - %s", exception)
             raise ConfigEntryAuthFailed(
@@ -109,3 +111,27 @@ class DaichiCloudClimateDataUpdateCoordinator(DataUpdateCoordinator):
                 translation_domain="daichi_cloud_integration",
                 translation_key="update_failed",
             ) from exception
+
+    async def async_control_function(self, action: str, value: float | bool | None) -> None:
+        """Send a discovered device function command and refresh the device state."""
+        function_ids = self.data.get("function_ids") if isinstance(self.data, dict) else None
+        function_id = function_ids.get(action) if isinstance(function_ids, dict) else None
+        if isinstance(function_id, bool) or not isinstance(function_id, int):
+            raise HomeAssistantError(f"This device does not support the {action.replace('_', ' ')} control.")
+
+        device_id = self.config_entry.data[CONF_DEVICE_ID]
+        try:
+            await self.config_entry.runtime_data.client.async_control_device(
+                device_id=device_id,
+                function_id=function_id,
+                value=value,
+            )
+        except DaichiCloudClimateApiClientAuthenticationError as exception:
+            raise ConfigEntryAuthFailed(
+                translation_domain="daichi_cloud_integration",
+                translation_key="authentication_failed",
+            ) from exception
+        except DaichiCloudClimateApiClientError as exception:
+            raise HomeAssistantError(str(exception)) from exception
+
+        await self.async_request_refresh()
