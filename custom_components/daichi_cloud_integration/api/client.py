@@ -227,6 +227,7 @@ class DaichiCloudClimateApiClient:
             },
             params={"ignoreConflicts": "false"},
         )
+
         if not isinstance(response, dict):
             msg = "Device control response must be a JSON object"
             raise DaichiCloudClimateApiClientError(msg)
@@ -272,6 +273,13 @@ class DaichiCloudClimateApiClient:
             headers["Authorization"] = f"Bearer {self._access_token}"
 
         try:
+            LOGGER.debug(
+                "Daichi Cloud request: method=%s path=%s params=%s payload=%s",
+                method,
+                path,
+                params,
+                self._redact_request_data(payload),
+            )
             async with asyncio.timeout(REQUEST_TIMEOUT.total):
                 async with self._session.request(
                     method,
@@ -361,3 +369,20 @@ class DaichiCloudClimateApiClient:
 
         unique_details = list(dict.fromkeys(details))
         return "; ".join(unique_details) or None
+
+    @classmethod
+    def _redact_request_data(cls, data: Any) -> Any:
+        """Redact sensitive fields before request parameters are written to logs."""
+        sensitive_fields = ("password", "token", "authorization", "email", "username", "secret")
+        if isinstance(data, dict):
+            return {
+                key: (
+                    "REDACTED"
+                    if any(field in str(key).casefold() for field in sensitive_fields)
+                    else cls._redact_request_data(value)
+                )
+                for key, value in data.items()
+            }
+        if isinstance(data, list):
+            return [cls._redact_request_data(value) for value in data]
+        return data
