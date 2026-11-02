@@ -46,7 +46,7 @@ class DaichiCloudClimateAirConditioner(ClimateEntity, DaichiCloudClimateEntity):
     def hvac_modes(self) -> list[HVACMode]:
         """Return HVAC modes that have control functions on this device."""
         function_ids = self._function_ids
-        modes = [HVACMode.OFF] if "power" in function_ids else []
+        modes = [HVACMode.OFF]
         modes.extend(mode for mode, action in HVAC_MODE_TO_ACTION.items() if action in function_ids)
         return modes
 
@@ -88,6 +88,10 @@ class DaichiCloudClimateAirConditioner(ClimateEntity, DaichiCloudClimateEntity):
         action = HVAC_MODE_TO_ACTION.get(hvac_mode)
         if action is None:
             raise HomeAssistantError(f"Unsupported HVAC mode: {hvac_mode}")
+
+        if self.hvac_mode == HVACMode.OFF:
+            await self.coordinator.async_control_function("power", True)
+
         await self.coordinator.async_control_function(action, True)
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
