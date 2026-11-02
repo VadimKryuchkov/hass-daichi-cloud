@@ -1,6 +1,6 @@
 """Function IDs supported by the Daichi Comfort Cloud API."""
 
-FUNCTION_ID_POWER = 350
+FUNCTION_ID_POWER = 64  # 350
 FUNCTION_ID_TEMPERATURE = 351
 
 FUNCTION_ID_COOL = 352

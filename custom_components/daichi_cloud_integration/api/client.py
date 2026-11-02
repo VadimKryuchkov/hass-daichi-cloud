@@ -219,7 +219,7 @@ class DaichiCloudClimateApiClient:
 
         response = await self._async_request_json(
             "POST",
-            f"/devices/{device_id}/ctrl",
+            f"/devices/{device_id}/ctrl?ignoreConflicts=false",
             payload={
                 "cmdId": secrets.randbelow(90_000_000) + 10_000_000,
                 "value": command_value,
